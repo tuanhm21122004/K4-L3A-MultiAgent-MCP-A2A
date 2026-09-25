@@ -47,9 +47,8 @@ async def solve_case(
 
     # Route based on the claim hypothesis to optimize tool budget and evidence precision
     if primary_claimed_topic in ["late_delivery_seller", "late_delivery_logistics", "unsupported_claim"]:
-        # Order specialist investigates order & items
-        fetch_items = primary_claimed_topic != "unsupported_claim"
-        order_info = await investigate_order(case_id, order_id, gateway, trace, fetch_items=fetch_items)
+        # Order specialist investigates order
+        order_info = await investigate_order(case_id, order_id, gateway, trace, fetch_items=False)
 
         # Handoff to shipment specialist
         trace.emit(
@@ -116,8 +115,7 @@ async def solve_case(
 
     else:
         # Canceled / Unavailable orders
-        fetch_items = primary_claimed_topic == "unavailable_order_paid"
-        order_info = await investigate_order(case_id, order_id, gateway, trace, fetch_items=fetch_items)
+        order_info = await investigate_order(case_id, order_id, gateway, trace, fetch_items=False)
 
         trace.emit(
             case_id=case_id,

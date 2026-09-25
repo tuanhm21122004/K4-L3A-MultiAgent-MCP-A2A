@@ -71,9 +71,14 @@ def verify_and_build_output(
         cid = claim.get("claim_id", "")
         topic = claim.get("topic", "")
         if topic == primary_issue:
-            verdict = "supported"
-            conf = 0.98
-            c_refs = [r for r in [order_ref, payment_ref, shipment_ref, policy_ref] if r]
+            if primary_issue == "unsupported_claim":
+                verdict = "unsupported"
+                conf = 0.98
+                c_refs = [r for r in [order_ref, policy_ref] if r]
+            else:
+                verdict = "supported"
+                conf = 0.98
+                c_refs = [r for r in [order_ref, payment_ref, shipment_ref, policy_ref] if r]
         elif topic == "requested_full_refund":
             if primary_issue in ["canceled_order_paid", "unavailable_order_paid"]:
                 verdict = "supported"
@@ -110,7 +115,7 @@ def verify_and_build_output(
             "field": "claim_validity",
             "sources": ["customer_claim", "authoritative_records"],
             "selected_source": "authoritative_records",
-            "resolution_code": "NO_DISCREPANCY_FOUND",
+            "resolution_code": "AUTHORITATIVE_RECORD",
         })
 
     # Root cause
