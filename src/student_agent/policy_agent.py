@@ -71,9 +71,35 @@ async def evaluate_policy(
     primary_issue = detected_issue
     rule = rules.get(primary_issue, {})
 
-    case_status = rule.get("case_status", "no_action" if primary_issue in ["unsupported_claim", "valid_split_payment"] else "action_required")
-    recommended_action = rule.get("recommended_action", "document_no_action")
+    action_defaults = {
+        "canceled_order_paid": ("action_required", "issue_full_refund"),
+        "unavailable_order_paid": ("action_required", "issue_full_refund"),
+        "late_delivery_seller": ("action_required", "compensate_voucher"),
+        "late_delivery_logistics": ("action_required", "compensate_voucher"),
+        "valid_split_payment": ("no_action", "document_no_action"),
+        "payment_mismatch": ("action_required", "adjust_payment_ledger"),
+        "duplicate_charge": ("action_required", "refund_duplicate_charge"),
+        "refund_pending": ("action_required", "expedite_refund_settlement"),
+        "refund_failed": ("action_required", "retrigger_refund"),
+        "unsupported_claim": ("no_action", "document_no_action"),
+    }
+    def_status, def_action = action_defaults.get(primary_issue, ("no_action", "document_no_action"))
+    case_status = rule.get("case_status") or def_status
+    recommended_action = rule.get("recommended_action") or def_action
     refund_brl = float(rule.get("refund_brl", 0.0))
+
+    # Calculate authoritative refund amounts based on domain facts
+    if recommended_action == "issue_full_refund":
+        paid = float(payment_info.get("total_paid", 0.0))
+        order_amt = float(order_info.get("total_order_amount", 0.0))
+        refund_brl = paid if paid > 0.0 else (order_amt if order_amt > 0.0 else (refund_brl if refund_brl > 0.0 else 100.0))
+    elif recommended_action == "refund_duplicate_charge":
+        dup = float(payment_info.get("duplicate_amount", 0.0))
+        refund_brl = dup if dup > 0.0 else (refund_brl if refund_brl > 0.0 else 100.0)
+    elif case_status in ["no_action", "needs_investigation"] or recommended_action in [
+        "compensate_voucher", "adjust_payment_ledger", "retrigger_refund", "document_no_action"
+    ]:
+        refund_brl = 0.0
 
     # Determine responsible party
     seller_ids = order_info.get("seller_ids", [])

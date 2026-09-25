@@ -37,7 +37,7 @@ async def investigate_payment(
         )
         payments_data = pay_res.get("data", [])
         refs: list[str] = []
-        payment_tuples: list[tuple[str, str, float]] = []
+        seen_payment_specs: list[tuple[str, float]] = []
 
         for p in payments_data:
             p_seq = str(p.get("payment_sequential", "1"))
@@ -49,18 +49,17 @@ async def investigate_payment(
             except (ValueError, TypeError):
                 pass
             total_paid += val
-            payment_tuples.append((p_seq, str(p.get("payment_type")), val))
+
+            p_type = str(p.get("payment_type"))
+            spec = (p_type, val)
+            if spec in seen_payment_specs:
+                is_duplicate = True
+                duplicate_amount += val
+            else:
+                seen_payment_specs.append(spec)
 
         if refs:
             payment_references = refs
-
-        seen_tuples: set[tuple[str, str, float]] = set()
-        for item in payment_tuples:
-            if item in seen_tuples:
-                is_duplicate = True
-                duplicate_amount += item[2]
-            else:
-                seen_tuples.add(item)
 
     # 2. Fetch refund timeline when investigating refund-related issues
     refund_events: list[dict[str, Any]] = []

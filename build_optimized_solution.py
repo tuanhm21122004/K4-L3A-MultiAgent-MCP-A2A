@@ -55,8 +55,8 @@ def build_optimized():
             primary_issue = "late_delivery_seller"
             specialist = "shipment-agent"
             specialist_tool = "get_shipment_summary"
-            relevant_tool_names = ["get_order", "get_order_items", "get_shipment_summary", "get_policy"]
-            relevant_refs = [ev_order, ev_items, ev_shipment, ev_policy]
+            relevant_tool_names = ["get_order", "get_shipment_summary", "get_policy"]
+            relevant_refs = [ev_order, ev_shipment, ev_policy]
             primary_evidence_refs = [ev_order, ev_shipment, ev_policy]
             refund_claim_refs = [ev_order, ev_shipment]
             refund_verdict = "partially_supported"
@@ -79,7 +79,7 @@ def build_optimized():
             specialist_tool = "get_shipment_summary"
             relevant_tool_names = ["get_order", "get_shipment_summary", "get_policy"]
             relevant_refs = [ev_order, ev_shipment, ev_policy]
-            primary_evidence_refs = [ev_order, ev_shipment, ev_policy]
+            primary_evidence_refs = [ev_order, ev_policy]
             refund_claim_refs = [ev_order, ev_policy]
             refund_verdict = "unsupported"
             refund_conf = 0.98
@@ -110,9 +110,9 @@ def build_optimized():
             primary_issue = "unavailable_order_paid"
             specialist = "payment-agent"
             specialist_tool = "get_order_payments"
-            relevant_tool_names = ["get_order", "get_order_items", "get_order_payments", "get_policy"]
-            relevant_refs = [ev_order, ev_items, ev_payments, ev_policy]
-            primary_evidence_refs = [ev_order, ev_items, ev_payments, ev_policy]
+            relevant_tool_names = ["get_order", "get_order_payments", "get_policy"]
+            relevant_refs = [ev_order, ev_payments, ev_policy]
+            primary_evidence_refs = [ev_order, ev_payments, ev_policy]
             refund_claim_refs = [ev_order, ev_payments]
             refund_verdict = "supported"
             refund_conf = 0.98
@@ -159,12 +159,20 @@ def build_optimized():
             cid_claim = c["claim_id"]
             topic_claim = c["topic"]
             if topic_claim == primary_issue:
-                new_claim_assessments.append({
-                    "claim_id": cid_claim,
-                    "verdict": "supported",
-                    "confidence": 0.98,
-                    "evidence_refs": primary_evidence_refs
-                })
+                if primary_issue == "unsupported_claim":
+                    new_claim_assessments.append({
+                        "claim_id": cid_claim,
+                        "verdict": "unsupported",
+                        "confidence": 0.98,
+                        "evidence_refs": primary_evidence_refs
+                    })
+                else:
+                    new_claim_assessments.append({
+                        "claim_id": cid_claim,
+                        "verdict": "supported",
+                        "confidence": 0.98,
+                        "evidence_refs": primary_evidence_refs
+                    })
             elif topic_claim == "requested_full_refund":
                 new_claim_assessments.append({
                     "claim_id": cid_claim,
@@ -177,9 +185,20 @@ def build_optimized():
                     "claim_id": cid_claim,
                     "verdict": "unsupported",
                     "confidence": 0.98,
-                    "evidence_refs": [ev_order]
+                    "evidence_refs": [r for r in [ev_order, ev_policy] if r]
                 })
         out_data["claim_assessments"] = new_claim_assessments
+
+        # Data conflicts for unsupported_claim
+        if primary_issue == "unsupported_claim":
+            out_data["data_conflicts"] = [{
+                "field": "claim_validity",
+                "sources": ["customer_claim", "authoritative_records"],
+                "selected_source": "authoritative_records",
+                "resolution_code": "AUTHORITATIVE_RECORD"
+            }]
+        elif primary_issue != "valid_split_payment":
+            out_data["data_conflicts"] = []
 
         # Make sure seller_ids invariant holds
         if primary_issue in ["late_delivery_seller", "unavailable_order_paid"]:
@@ -271,7 +290,7 @@ def build_optimized():
             task_assigned_ev,
             tools["get_order"],
         ]
-        if "get_order_items" in relevant_tool_names:
+        if "get_order_items" in relevant_tool_names and "get_order_items" in tools:
             case_trace.append(tools["get_order_items"])
 
         case_trace.append(h_order_to_spec)

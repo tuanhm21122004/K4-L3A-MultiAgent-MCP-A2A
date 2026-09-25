@@ -44,7 +44,7 @@ def verify_and_build_output(
     if refund_brl > 0.0:
         refund_lines.append({
             "reason_code": primary_issue,
-            "amount_brl": float(refund_brl),
+            "amount_brl": round(float(refund_brl), 2),
             "entity_id": order_id,
         })
 
@@ -99,7 +99,7 @@ def verify_and_build_output(
         else:
             verdict = "unsupported"
             conf = 0.98
-            c_refs = [r for r in [order_ref] if r]
+            c_refs = [r for r in [order_ref, policy_ref] if r]
 
         claim_assessments.append({
             "claim_id": cid,
@@ -149,7 +149,7 @@ def verify_and_build_output(
         "data_conflicts": data_conflicts,
         "financial_resolution": {
             "currency": "BRL",
-            "recommended_refund_brl": float(refund_brl),
+            "recommended_refund_brl": round(float(refund_brl), 2),
             "refund_lines": refund_lines,
         },
         "resolution_actions": list(dict.fromkeys(resolution_actions))[:8],
